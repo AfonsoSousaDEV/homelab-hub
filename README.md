@@ -25,7 +25,7 @@ Ports are bound to `127.0.0.1` by default; see `BIND_ADDRESS` in `.env.example` 
 | `postgres/init/` | SQL that runs once when the database volume is created |
 | `scripts/` | Helpers to create `.env` and pull a model |
 | `docs/architecture.md` | How the pieces fit together |
-| `CLAUDE.md` | Rules for working with Claude Code in this repository |
+| `CLAUDE.md` | Stack-specific notes for Claude Code (imports `AGENTS.md`) |
 
 ## 🧠 Architectural & Tech Stack Overview
 
