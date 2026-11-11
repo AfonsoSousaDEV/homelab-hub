@@ -1,4 +1,4 @@
-# homelab-hub
+# homelab-hub project
 A lightweight homelab dashboard and automation utility for our team project.
 
 ## 🧠 Architectural & Tech Stack Overview
