@@ -14,6 +14,7 @@ houve, quanto demoraram, quantos emails foram resumidos e onde ocorreram falhas.
 - `tests/check_stale_panel.py`: confirma que uma execução antiga continua visível no indicador.
 - `docs/INTEGRATION.md`: contrato que deves combinar com o Afonso e o Lourenço.
 - `docs/VALIDATION.md`: resultados e limites da validação local desta versão.
+- `integration/`: variante do workflow do Lourenço com métricas, ligação de rede e testes isolados.
 
 Começa pelos comandos do README. A base de dados arranca vazia; carregar a demo é
 opcional. O workflow real, o serviço de resumo e a VPN pertencem às outras tarefas.
@@ -34,6 +35,22 @@ escolhes as últimas 24 horas ou os últimos 5 minutos.
 As execuções terminadas ficam protegidas na própria base de dados: não se pode mudar
 um sucesso para uma falha, reabrir uma execução ou reescrever as suas métricas.
 Uma nova tentativa deve ter um novo identificador de execução.
+
+## Integração com o Lourenço
+
+A variante **Email digest → Discord (metrics)** tem um identificador próprio e vem
+inativa. Regista o início antes de ler o Gmail e o fim depois dos envios. Uma caixa
+vazia também deixa um registo de sucesso com zero emails. Respostas incompletas ou
+duplicadas do modelo geram falhas em vez de contagens de sucesso incorretas.
+
+O guia [integration/README.md](../integration/README.md) explica como a importar e
+ligar às duas redes. Os testes automáticos usam n8n e PostgreSQL reais, mas todos os
+emails, respostas do modelo e envios são fictícios e ficam numa rede isolada.
+
+Para o teste com contas reais, precisamos de combinar com o Lourenço a importação,
+as credenciais da conta de teste e o canal Discord. A ligação ao serviço `/summarize`
+do Afonso aguarda o contrato desse endpoint. O acesso partilhado continua a depender
+da infraestrutura acordada com o Martim.
 
 A taxa de sucesso divide os sucessos pelas execuções **já terminadas**. O percentil
 95 da duração é um valor abaixo do qual ficam cerca de 95% das durações observadas;

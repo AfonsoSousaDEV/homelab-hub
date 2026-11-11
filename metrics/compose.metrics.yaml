@@ -12,6 +12,10 @@ services:
       GRAFANA_READER_PASSWORD: ${GRAFANA_READER_PASSWORD:?Set GRAFANA_READER_PASSWORD in .env}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    networks:
+      default:
+        aliases:
+          - metrics-postgres
     volumes:
       # PostgreSQL 18 uses a version-specific directory under /var/lib/postgresql.
       - metrics_postgres:/var/lib/postgresql

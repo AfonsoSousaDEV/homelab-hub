@@ -3,6 +3,12 @@
 Owner: Dani. Consumers: Afonso's Python service and Lourenço's n8n workflow.
 This contract is a proposal for the first integration; review it together before merging.
 
+The [n8n integration variant](../integration/README.md) uses `email-digest` as workflow
+key and the actual n8n execution ID as execution key. Its start query and explicit
+`acquired` gate continue only when a new run row is created. It records empty inboxes, validates every summary,
+and aggregates all Discord chunks before one completion update. Inline failure handling
+also covers manual runs, independently of the automatic-only Error Trigger.
+
 ## Connection and ownership
 
 Database: `homelab`; writer role: `metrics_writer`; table: `metrics.workflow_runs`.

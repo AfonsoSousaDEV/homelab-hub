@@ -9,6 +9,9 @@ license remain at the repository root. See the
 [Portuguese guide](docs/GUIA_DANI.md) for a guided introduction and the
 [integration contract](docs/INTEGRATION.md) before connecting producers.
 
+The [n8n integration](integration/README.md) provides an inactive instrumented variant
+of Lourenço's digest, a network overlay and isolated end-to-end fixture tests.
+
 ## Local development
 
 Requirements: Docker Engine/Desktop with Docker Compose. Run commands from this

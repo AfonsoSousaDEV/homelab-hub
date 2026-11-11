@@ -52,3 +52,37 @@ repository; no parent Git repository changes were performed.
 
 Real email/workflow integration, browser layout, VPN and backup restoration remain
 outside this validation, as listed above.
+
+## n8n integration — 2026-11-11
+
+Reviewed upstream: Lourenço's workflow/Compose at commit
+`fa435272d550f8f0b53e878797e922d7cfdb68fe` (PR #5). Exact snapshots are preserved
+under `integration/upstream/`; the instrumented export has its own ID and is inactive.
+
+Passed:
+
+- Seven pure JavaScript behavior tests covering preparation, empty inboxes, sanitized
+  errors, complete/unique summaries, priorities, chunking and delivery aggregation.
+- Real n8n `2.47.4` execution with Postgres 17 for n8n and Postgres 18 for metrics,
+  on two isolated internal Docker networks with no published ports.
+- Twelve synthetic scenarios: success, empty inbox, Gmail failure, invalid JSON,
+  missing summaries, duplicate indices, invalid priority, provider unavailable,
+  provider timeout, Discord failure, multipart success and partial multipart failure.
+- Each scenario produced exactly one terminal metrics row with expected counts and
+  code. Failed cases also failed the n8n execution after recording the metrics.
+- A repeated successful fixture with a fixed execution identity stopped at the explicit
+  acquisition gate, kept one row and made no extra model or delivery requests.
+- Invalid/empty/failed summaries made no delivery calls. Multipart posts respected
+  message size and disabled mention parsing; completion occurred once per attempt.
+- The workflow used a real `metrics_writer` credential, generated only for the isolated
+  tests. Gmail was replaced with synthetic items and all HTTP calls targeted local mocks.
+- The network overlay merged with the reviewed upstream Compose file, with unambiguous
+  `n8n-postgres` and `metrics-postgres` aliases and the correct read-only workflow mount.
+- Updated the existing metrics service with its network alias; all nine Grafana queries
+  still passed and the original 49 rows retained their exact content fingerprint.
+- Temporary test projects and their volumes were removed by the test runner.
+
+No real email credentials, Ollama instance or Discord webhook were used. The account-based
+end-to-end test still needs coordination with Lourenço. Afonso's `/summarize` API contract
+and the shared remote deployment remain separate integration tasks. Root project files
+and Lourenço's branch/workflow were not overwritten.

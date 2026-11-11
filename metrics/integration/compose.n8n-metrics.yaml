@@ -1,0 +1,23 @@
+# Overlay for Lourenco's root docker-compose.yml. Run from the repository root.
+# Start metrics/compose.metrics.yaml first to create the external network.
+services:
+  postgres:
+    networks:
+      default:
+        aliases:
+          - n8n-postgres
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.47.4
+    environment:
+      # Both networks contain a service named postgres; use an unambiguous alias.
+      DB_POSTGRESDB_HOST: n8n-postgres
+    networks:
+      default: {}
+      metrics: {}
+    volumes:
+      - ./metrics/integration/workflows:/metrics-workflows:ro
+
+networks:
+  metrics:
+    external: true
+    name: homelab-metrics_default
