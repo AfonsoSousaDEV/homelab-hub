@@ -1,0 +1,52 @@
+# Dani's standalone module. The main Homelab Compose file is owned by the team.
+name: homelab-metrics
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: homelab
+      POSTGRES_USER: homelab_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      METRICS_WRITER_PASSWORD: ${METRICS_WRITER_PASSWORD:?Set METRICS_WRITER_PASSWORD in .env}
+      GRAFANA_READER_PASSWORD: ${GRAFANA_READER_PASSWORD:?Set GRAFANA_READER_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      # PostgreSQL 18 uses a version-specific directory under /var/lib/postgresql.
+      - metrics_postgres:/var/lib/postgresql
+      - ./db/bootstrap:/docker-entrypoint-initdb.d:ro
+      - ./db/migrations:/migrations:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    environment:
+      GF_SECURITY_ADMIN_USER: dani
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      METRICS_DB_PASSWORD: ${GRAFANA_READER_PASSWORD:?Set GRAFANA_READER_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${GRAFANA_PORT:-53000}:3000"
+    volumes:
+      - metrics_grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  metrics_postgres:
+  metrics_grafana:
