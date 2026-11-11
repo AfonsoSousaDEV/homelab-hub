@@ -28,3 +28,26 @@ To achieve our goals of building a robust portfolio, exploring local AI (LLMs), 
 ### 🌿 Git & GitHub Governance (Professional Workflow)
 * **What it is:** Version control with protected branches and code review protocols[cite: 2, 5].
 * **Why we use it:** To ensure code quality and collaboration safety. We never commit directly to `main`; every feature is developed in isolation and requires peer review via Pull Requests before merging, mimicking real-world engineering teams[cite: 2, 5].
+
+## 🧠 Architectural & Tech Stack Overview
+
+To achieve our goals of building a robust portfolio, exploring local AI (LLMs), and adopting professional software engineering practices[cite: 1], our team relies on a standardized, open-source technology stack:
+
+- **Ubuntu & WSL2**: The standardized development environment.
+- **Docker & Docker Compose**: Containerized infrastructure for n8n, PostgreSQL, and Grafana.
+- **Ollama**: Centralized AI model execution hosted on dedicated team hardware (Branco's machine).
+- **WireGuard**: Secure private VPN access across team members.
+
+---
+
+## 👥 Team Roles & Responsibilities
+
+| Member | Role | Key Technologies & Responsibilities |
+| :--- | :--- | :--- |
+| **Martim** | Backend & Infrastructure[cite: 6] | Docker Compose, Ollama server setup, WireGuard VPN, Git repository management & PR reviews[cite: 10]. |
+| **Afonso** | Backend, Tests & CI/CD[cite: 6] | Python micro-service (`/summarize` endpoint), automated testing, GitHub Actions CI[cite: 10]. |
+| **Lourenço** | Automation & Workflows[cite: 6, 10] | n8n daily email summary workflow (reading emails, invoking AI service, sending to Discord)[cite: 10]. |
+| **Carlos** | Testing, Risk & Docs[cite: 6, 10] | Threat modeling, security & credential risk registry, n8n test cases, and README documentation[cite: 10]. |
+| **Dani** | Data & Backend[cite: 6, 10] | PostgreSQL database schema for execution logs, Grafana monitoring dashboards, synthetic pricing rules[cite: 10]. |
+
+---
