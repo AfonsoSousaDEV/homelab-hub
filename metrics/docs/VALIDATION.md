@@ -29,3 +29,26 @@ No email account was accessed and no Discord messages were sent.
 The development services were left running on localhost ports 55432 and 53000.
 Original planning PDFs and the GitHub Desktop shortcut were preserved. Validation was performed before packaging the standalone module into the shared
 repository; no parent Git repository changes were performed.
+
+## Correctness fixes — 2026-11-11
+
+- Added migration `002` without editing `001` or rewriting any existing execution rows.
+- Applied `001` and `002` to a separate temporary database and ran the SQL tests there.
+- Verified that completed successes and failures reject changed status, counters,
+  identifiers, timestamps and model/error metadata, even without a producer status guard.
+- Verified that identical no-op updates, progress updates and completion of running
+  attempts still work. SQL test fixtures were rolled back.
+- Ran the actual stale-panel SQL with a two-day-old running fixture and short,
+  24-hour and historical time windows. The attempt remained counted in every case;
+  test data was rolled back.
+- Applied `002` to the existing local database and updated the services to use the
+  repository's `metrics/` bind mounts, retaining the existing named volumes.
+- Repeated the SQL and stale-panel regression tests against the upgraded database.
+- Validated all nine live Grafana panel queries through its API, including an unchanged
+  stale-attempt count for 5-minute, 24-hour and historical selected ranges.
+- Confirmed that all 49 existing rows were preserved: the count and deterministic
+  content fingerprint were identical before and after the upgrade and tests.
+- Removed the separate temporary test database after successful validation.
+
+Real email/workflow integration, browser layout, VPN and backup restoration remain
+outside this validation, as listed above.

@@ -466,6 +466,7 @@
     {
       "id": 9,
       "title": "Running for over 15 minutes",
+      "description": "Current unfinished attempts older than 15 minutes across all history. This indicator is independent of the dashboard time range; old attempts remain visible until reconciled.",
       "type": "stat",
       "datasource": {
         "type": "postgres",
@@ -484,7 +485,7 @@
             "type": "postgres",
             "uid": "homelab-postgres"
           },
-          "rawSql": "SELECT count(*) AS stale_runs FROM metrics.run_metrics WHERE $__timeFilter(started_at) AND status = 'running' AND started_at < now() - interval '15 minutes'",
+          "rawSql": "SELECT count(*) AS stale_runs FROM metrics.run_metrics WHERE status = 'running' AND started_at < now() - interval '15 minutes'",
           "format": "table",
           "rawQuery": true,
           "editorMode": "code"

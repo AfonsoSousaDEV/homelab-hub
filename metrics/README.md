@@ -61,8 +61,16 @@ docker compose -f compose.metrics.yaml exec -T postgres psql -U homelab_owner -d
 ```
 
 The tests cover invalid counts/status/times, duplicate execution IDs, guarded completion,
-duration units, empty batches, partial failures, success-rate semantics and role permissions.
+database-enforced immutable completed runs, duration units, empty batches, partial failures,
+success-rate semantics and role permissions.
 They roll back all their data. Run them against a development database.
+
+Test the stale-attempt panel's actual SQL using a two-day-old running attempt. The
+test checks short, 24-hour and historical ranges, then rolls back the fixture:
+
+```bash
+python3 tests/check_stale_panel.py
+```
 
 Validate the provisioned dashboard queries through Grafana's API (Python standard
 library only). Enter your Grafana password at the prompt; for another port, set
@@ -73,7 +81,26 @@ python3 tests/check_dashboard.py
 ```
 
 This checks datasource connectivity and all nine panel queries, including Grafana SQL
-macros. It does not replace a visual check in the browser.
+macros and the stale count's independence from the selected time range. It does not
+replace a visual check in the browser. The **Running for over 15 minutes** indicator
+always shows the current count across all history, even when viewing a historical range.
+
+## Upgrade an existing database
+
+Fresh database volumes apply migrations `001` and `002` automatically. For an existing
+database initialized before `002`, apply the new migration **once**, from this folder:
+
+```bash
+docker compose -f compose.metrics.yaml exec -T postgres psql -X -U homelab_owner -d homelab -v ON_ERROR_STOP=1 < db/migrations/002_protect_completed_runs.sql
+```
+
+This adds a trigger without changing or deleting any execution records. Completed
+`succeeded` and `failed` rows become immutable, including their counters, times and
+identifiers. Identical no-op updates are accepted; progress updates and completion of
+running attempts still work. The guard also applies to the owner account; any exceptional
+historical correction requires a deliberate maintenance procedure.
+Keep the `WHERE status = 'running'` completion guard in producers so repeated completion
+requests return zero rows instead of attempting to change a finished record.
 
 ## Stop, persistence and changes
 

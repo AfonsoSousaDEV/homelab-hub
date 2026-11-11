@@ -70,6 +70,31 @@ BEGIN
     END;
 END;
 $$;
+
+-- These updates would satisfy all original CHECK constraints. The database guard,
+-- rather than a producer's WHERE status = 'running', must reject each change.
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET status = 'failed', error_code = 'TEST_REWRITE'
+    WHERE workflow_key = 'test' AND execution_key = 'lifecycle'$q$);
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET status = 'running', finished_at = NULL
+    WHERE workflow_key = 'test' AND execution_key = 'lifecycle'$q$);
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET emails_total = 3, emails_summarized = 3
+    WHERE workflow_key = 'test' AND execution_key = 'lifecycle'$q$);
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET model_name = 'rewritten-model'
+    WHERE workflow_key = 'test' AND execution_key = 'lifecycle'$q$);
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET finished_at = finished_at + interval '1 second'
+    WHERE workflow_key = 'test' AND execution_key = 'lifecycle'$q$);
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET execution_key = 'rewritten-identity'
+    WHERE workflow_key = 'test' AND execution_key = 'lifecycle'$q$);
+
+-- An unchanged retry is harmless and may still return the existing row.
+UPDATE metrics.workflow_runs SET model_name = model_name
+WHERE workflow_key = 'test' AND execution_key = 'lifecycle';
 RESET ROLE;
 
 INSERT INTO metrics.workflow_runs (workflow_key, execution_key, status, started_at, finished_at)
@@ -81,6 +106,24 @@ VALUES ('test', 'partial-failure', 'failed', now() - interval '3 seconds', now()
         5, 2, 1, 'OLLAMA_TIMEOUT');
 INSERT INTO metrics.workflow_runs (workflow_key, execution_key)
 VALUES ('test', 'still-running');
+
+SET LOCAL ROLE metrics_writer;
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET status = 'succeeded', error_code = NULL, emails_summarized = 5, emails_failed = 0
+    WHERE workflow_key = 'test' AND execution_key = 'partial-failure'$q$);
+SELECT pg_temp.expect_check($q$UPDATE metrics.workflow_runs
+    SET error_code = 'OTHER_FAILURE'
+    WHERE workflow_key = 'test' AND execution_key = 'partial-failure'$q$);
+
+-- Progress updates and failed completion remain valid while a run is running.
+INSERT INTO metrics.workflow_runs (workflow_key, execution_key, emails_total)
+VALUES ('test-active', 'progress', 2);
+UPDATE metrics.workflow_runs SET emails_summarized = 1
+WHERE workflow_key = 'test-active' AND execution_key = 'progress';
+UPDATE metrics.workflow_runs
+SET status = 'failed', finished_at = clock_timestamp(), error_code = 'OLLAMA_TIMEOUT'
+WHERE workflow_key = 'test-active' AND execution_key = 'progress';
+RESET ROLE;
 
 SET LOCAL ROLE grafana_reader;
 DO $$
@@ -117,4 +160,4 @@ END;
 $$;
 
 ROLLBACK;
-\echo 'PASS: constraints, lifecycle, retries, durations, success rate and role permissions'
+\echo 'PASS: constraints, immutable completed runs, progress, retries, durations, success rate and permissions'

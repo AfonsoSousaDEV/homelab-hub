@@ -6,10 +6,12 @@ houve, quanto demoraram, quantos emails foram resumidos e onde ocorreram falhas.
 ## O que existe nesta primeira versão
 
 - `db/migrations/001_execution_metrics.sql`: tabela, regras de consistência, índices e vista.
+- `db/migrations/002_protect_completed_runs.sql`: impede alterações a execuções terminadas.
 - `db/queries/`: consultas para o resumo das últimas 24 horas, evolução por hora e execuções demoradas.
 - `grafana/`: ligação PostgreSQL e painel carregados automaticamente.
 - `db/seed/demo.sql`: exemplos artificiais, carregados apenas quando pedires.
 - `tests/metrics.sql`: testes reais em PostgreSQL; os registos dos testes são revertidos.
+- `tests/check_stale_panel.py`: confirma que uma execução antiga continua visível no indicador.
 - `docs/INTEGRATION.md`: contrato que deves combinar com o Afonso e o Lourenço.
 - `docs/VALIDATION.md`: resultados e limites da validação local desta versão.
 
@@ -25,6 +27,13 @@ o fim. `duration_ms` é calculado na vista a partir desses tempos.
 Os estados são `running` (em curso), `succeeded` (terminou bem) e `failed` (terminou
 com erro). Uma execução sem emails também pode terminar bem. Se o workflow parar
 abruptamente, pode ficar em curso; o painel destaca esses casos após 15 minutos.
+Esse indicador mostra a situação atual em todo o histórico, independentemente do
+intervalo escolhido no painel. Uma execução antiga não desaparece da contagem quando
+escolhes as últimas 24 horas ou os últimos 5 minutos.
+
+As execuções terminadas ficam protegidas na própria base de dados: não se pode mudar
+um sucesso para uma falha, reabrir uma execução ou reescrever as suas métricas.
+Uma nova tentativa deve ter um novo identificador de execução.
 
 A taxa de sucesso divide os sucessos pelas execuções **já terminadas**. O percentil
 95 da duração é um valor abaixo do qual ficam cerca de 95% das durações observadas;

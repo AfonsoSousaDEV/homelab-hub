@@ -29,6 +29,11 @@ LLM request latency is not measured separately in version 1.
 5. Update only rows whose current status is `running`. Zero updated rows means the
    attempt already finished or the ID is wrong; investigate instead of overwriting it.
 
+Migration `002` also enforces this at database level: any actual change to a completed
+row is rejected with SQLSTATE `23514` and constraint `completed_run_immutable`, even if
+a producer omits the status guard. An identical no-op update is allowed. This protects
+both successful and failed attempts, including their counters, timestamps and identifiers.
+
 If n8n crashes before finalizing, the row stays `running`; the dashboard flags attempts
 older than 15 minutes. This is diagnostic, not proof of failure. Reconcile these rows
 against n8n before correcting them. Retrying the actual workflow is a new attempt with
@@ -74,7 +79,9 @@ but delivery to Discord failed. Unprocessed emails may remain after an early fai
 
 All timestamps are timezone-aware; send ISO 8601 timestamps with an explicit offset
 if overriding the database defaults. Use the database clock for normal operation.
-The dashboard filters attempts by **start time**. Success rate excludes running rows;
+The historical dashboard panels filter attempts by **start time**. The current
+**Running for over 15 minutes** indicator covers all history independently of the selected
+time range, so old unresolved attempts remain visible. Success rate excludes running rows;
 latency includes finished attempts of either outcome. No finished attempts means no
 success-rate/latency value, rather than a misleading zero.
 
