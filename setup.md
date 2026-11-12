@@ -65,7 +65,7 @@ Execute these commands inside your **WSL2 / Linux terminal**:
    ```bash
    ssh-keygen -t ed25519 -C "your.email@example.com"
    ```
-   * Press Enter to accept default location.
+   * Press Enter to accept default location, and set a passphrase when asked (recommended).
    * Print your key and copy it:
      ```bash
      cat ~/.ssh/id_ed25519.pub
@@ -74,28 +74,33 @@ Execute these commands inside your **WSL2 / Linux terminal**:
 
 3. **Clone the Repository:**
    ```bash
-   git clone git@github.com:YOUR_ORGANIZATION_OR_USERNAME/REPOSITORY_NAME.git
-   cd REPOSITORY_NAME
+   git clone git@github.com:AfonsoSousaDEV/homelab-hub.git
+   cd homelab-hub
    ```
+   Clone it inside the Ubuntu filesystem (for example `~/projects`), not under `/mnt/c/...`: it is much faster and avoids permission problems.
 
 ---
 
 ## 🤖 4. Local AI Environment (Ollama Setup)
 
-If you are running local LLM tests (e.g., on machines with dedicated GPU):
+Ollama runs as a container in our `compose.yaml`, so everyone gets the same version and nothing is installed globally. You do not need to install it separately.
 
-1. **Install Ollama:**
+1. **Start the stack and download a light model** (Phi-4 Mini / Qwen 3 4B fit in 6 GB of VRAM):
    ```bash
-   curl -fsSL https://ollama.com/install.sh | sh
+   ./scripts/init-env.sh
+   docker compose up -d
+   ./scripts/pull-model.sh qwen3:4b
+   docker compose exec ollama ollama run qwen3:4b
    ```
-2. **Test a light model (Phi-4 Mini / Qwen 3 4B):**
+2. **NVIDIA GPU (optional):** set `COMPOSE_FILE=compose.yaml:compose.gpu.yaml` in `.env` and run `docker compose up -d` again. On Windows the NVIDIA driver is installed on Windows itself, not inside Ubuntu; `nvidia-smi` should work inside Ubuntu if everything is right.
+3. **Verify GPU offloading:**
    ```bash
-   ollama run qwen3:4b
+   docker compose exec ollama ollama ps
    ```
-3. Verify GPU offloading:
-   ```bash
-   ollama ps
-   ```
+   The `PROCESSOR` column should say `100% GPU`. If it shows CPU, close other GPU-heavy apps (browser, games) and keep the context small (`OLLAMA_CONTEXT_LENGTH` in `.env`).
+4. **Machines without a GPU** work too, only slower. Skip step 2.
+
+Optional: you can also install Ollama natively inside Ubuntu (`curl -fsSL https://ollama.com/install.sh | sh`), but do not run it at the same time as the container, because both use port 11434.
 
 ---
 
@@ -118,12 +123,18 @@ To keep the repository clean and ensure everyone reviews code:
    ```
 5. **PR Rule:** Self-merging is disabled. At least one teammate must review and approve your PR before merging!
 
+This is enforced by a GitHub ruleset on `main`: pull request required, 1 approval, no force-push, no branch deletion. If a push to `main` is rejected, that is the rule working, not a bug.
+
 ---
 
 ## ⚡ Quick Test (Verification)
 
-Run this command inside the project root directory:
+Run these commands inside the project root directory (in Ubuntu):
 ```bash
-docker compose up --build
+./scripts/init-env.sh
+docker compose up -d
+docker compose ps
 ```
-If the containers build and run without errors, your setup is 100% ready!
+All three services (`postgres`, `n8n`, `ollama`) should show as running, and `postgres` as `healthy`. Open http://localhost:5678 to see n8n. If that works, your setup is ready.
+
+Stop everything with `docker compose down` (your data stays in Docker volumes; `docker compose down -v` deletes it).

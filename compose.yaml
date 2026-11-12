@@ -1,0 +1,110 @@
+# Homelab Hub: n8n + Postgres + Ollama.
+#
+# Quick start:
+#   ./scripts/init-env.sh        # creates .env with random secrets
+#   docker compose up -d
+#
+# NVIDIA GPU (e.g. GTX 1660 Super): set COMPOSE_FILE=compose.yaml:compose.gpu.yaml in .env
+#
+# Ports are bound to BIND_ADDRESS (127.0.0.1 by default), so nothing is exposed
+# to the network unless you change it on purpose. Postgres is never published.
+
+name: homelab-hub
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-n8n}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Scripts here run only the first time the volume is created.
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hub
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:5678:5678"
+    environment:
+      # The value is "postgresdb", not "postgres": a wrong value silently falls back to SQLite.
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-n8n}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env}
+      N8N_SECURE_COOKIE: ${N8N_SECURE_COOKIE:-true}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+      GENERIC_TIMEZONE: ${TZ:-Europe/Lisbon}
+      TZ: ${TZ:-Europe/Lisbon}
+      API_BASE_URL: ${API_BASE_URL:-http://api:8000}
+      API_KEY: ${API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/workflows:ro
+    networks:
+      - hub
+
+  ollama:
+    image: ollama/ollama:${OLLAMA_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:11434:11434"
+    environment:
+      # Context is what overflows a 6 GB card, not the weights: keep it small by default.
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-4096}
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-5m}
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - hub
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:8000:8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${APP_DB_NAME:-homelab}
+      API_KEY: ${API_KEY:?set API_KEY in .env}
+    networks:
+      - hub
+
+volumes:
+  postgres_data:
+  n8n_data:
+  ollama_data:
+
+networks:
+  hub:

@@ -1,0 +1,14 @@
+# NVIDIA GPU override for Ollama. Enable it by setting
+#   COMPOSE_FILE=compose.yaml:compose.gpu.yaml
+# in .env (on Windows with WSL2 this needs the NVIDIA driver installed on Windows,
+# and Docker Desktop with the WSL2 backend). Check with: docker compose exec ollama ollama ps
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
