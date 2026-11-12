@@ -1,0 +1,202 @@
+{
+  "name": "01 · Resumo de emails → Discord",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Resumo de emails → Discord\n\n1. Em **Ler emails**, criar/selecionar a credencial **IMAP** da conta de teste.\n2. Preencher `DISCORD_WEBHOOK_URL` e `OLLAMA_MODEL` no `.env` e reiniciar o n8n.\n3. Executar manualmente uma vez. O nó **Guardar na API** pode falhar enquanto a API não existir — está em `continue on fail`.\n\nPlano: `docs/plano-semana-1.md` · Módulo M2 (Lourenço).",
+        "height": 220,
+        "width": 540,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-100, -280],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000001",
+      "name": "Nota"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000002",
+      "name": "A cada 30 minutos"
+    },
+    {
+      "parameters": {
+        "mailbox": "INBOX",
+        "postProcessAction": "read",
+        "options": {
+          "limit": 5,
+          "downloadAttachments": false
+        }
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [220, 0],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000003",
+      "name": "Ler emails"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the Ollama request from the email(s) returned by the IMAP node.\nconst email = $input.first().json;\nconst raw = email.textPlain || email.textHtml || '';\nconst body = String(raw)\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim()\n  .slice(0, 6000);\n\nconst prompt = [\n  'Resume este email em português europeu, com 3 a 5 bullets curtos.',\n  'No fim, indica \"Ação:\" com a próxima ação necessária, ou \"Ação: nenhuma\".',\n  'Não inventes informação que não esteja no email.',\n  '',\n  `Assunto: ${email.subject || '(sem assunto)'}`,\n  `De: ${email.from || '(desconhecido)'}`,\n  '',\n  body,\n].join('\\n');\n\nreturn [\n  {\n    json: {\n      message_id: email.messageId || null,\n      subject: email.subject || '(sem assunto)',\n      sender: email.from || '',\n      received_at: email.date || null,\n      prompt,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000004",
+      "name": "Preparar prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.OLLAMA_BASE_URL || 'http://ollama:11434') + '/api/generate' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $env.OLLAMA_MODEL || 'qwen3:4b', prompt: $json.prompt, stream: false }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 0],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000005",
+      "name": "Ollama"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turn the Ollama response into a Discord-safe message (max 2000 chars).\nconst info = $('Preparar prompt').first().json;\nconst summary = String($input.first().json.response || '').trim() || '(sem resposta do modelo)';\nconst content = `**${info.subject}**\\n\\n${summary}`.slice(0, 1900);\n\nreturn [\n  {\n    json: {\n      subject: info.subject,\n      sender: info.sender,\n      summary,\n      content,\n    },\n  },\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [880, 0],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000006",
+      "name": "Formatar mensagem"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: $json.content, allowed_mentions: { parse: [] } }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, -100],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000007",
+      "name": "Discord"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.API_BASE_URL || 'http://api:8000') + '/api/summaries' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message_id: $('Preparar prompt').first().json.message_id, subject: $json.subject, sender: $json.sender, summary: $json.summary, model: $env.OLLAMA_MODEL || 'qwen3:4b', received_at: $('Preparar prompt').first().json.received_at }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1100, 100],
+      "id": "0b2f0c1a-1a1a-4a1a-9a1a-000000000008",
+      "name": "Guardar na API",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "A cada 30 minutos": {
+      "main": [
+        [
+          {
+            "node": "Ler emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ler emails": {
+      "main": [
+        [
+          {
+            "node": "Preparar prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar prompt": {
+      "main": [
+        [
+          {
+            "node": "Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama": {
+      "main": [
+        [
+          {
+            "node": "Formatar mensagem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar mensagem": {
+      "main": [
+        [
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Guardar na API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
