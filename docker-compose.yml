@@ -43,6 +43,7 @@ services:
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: 5678
       N8N_PROTOCOL: http
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?defina N8N_ENCRYPTION_KEY no .env}
       N8N_SECURE_COOKIE: "false"
       WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
       GENERIC_TIMEZONE: ${TZ:-Europe/Lisbon}
@@ -51,6 +52,8 @@ services:
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_RUNNERS_ENABLED: "true"
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      # Kept as an alias for the setup helper from the workflow module.
+      OLLAMA_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
       DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
       API_BASE_URL: ${API_BASE_URL:-http://api:8000}

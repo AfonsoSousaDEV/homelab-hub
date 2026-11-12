@@ -20,5 +20,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: printf 'POSTGRES_PASSWORD=ci\nAPI_KEY=ci\n' > .env
+      - run: printf 'POSTGRES_PASSWORD=ci\nAPI_KEY=ci\nN8N_ENCRYPTION_KEY=ci\n' > .env
       - run: docker compose config
